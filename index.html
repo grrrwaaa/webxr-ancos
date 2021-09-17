@@ -48,6 +48,9 @@
       camera.position.y = EYE_HEIGHT;
       camera.position.z = 2;
 
+      // make an indepenent camera for VR:
+      let camera_vr = camera.clone();
+
       // ensure the renderer fills the page, and the camera aspect ratio matches:
       function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -214,17 +217,19 @@
 
         pointsGeom.setDrawRange(0, pointsCount);
 
-        // draw the scene:
-        renderer.render(scene, camera);
-
-        // Re-Render the scene, but this time to the canvas (don't do this on Mobile!)
+        // draw the scene:w
         if (renderer.xr.isPresenting) {
-          //       renderer.xr.enabled = false;
-          //       let oldFramebuffer = renderer._framebuffer;
-          //       renderer.state.bindXRFramebuffer( null );
-          //       renderer.render(scene, camera);
-          //       renderer.xr.enabled = true;
-          //       renderer.state.bindXRFramebuffer(oldFramebuffer);
+          // draw VR first:
+          renderer.render(scene, camera_vr);
+          // now draw to page:
+          renderer.xr.isPresenting = false;
+          renderer.setFramebuffer(null);
+          renderer.setRenderTarget(renderer.getRenderTarget());
+          renderer.clear();
+          renderer.render(scene, camera);
+          renderer.xr.isPresenting = true;
+        } else {
+          renderer.render(scene, camera);
         }
 
         // monitor our FPS:
@@ -245,7 +250,8 @@
             let mesh = group.children[0];
             let geom = mesh.geometry;
             geom.rotateX(-Math.PI / 2);
-            geom.translate(0, 2.6, 0);
+            geom.rotateY(+Math.PI / 2);
+            geom.translate(0.6, 2.65, -0);
             // possibly
             scene.add(new THREE.Points(mesh.geometry, pointsMat));
 
