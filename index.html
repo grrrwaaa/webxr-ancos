@@ -1,0 +1,166 @@
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0px
+    }
+  </style>
+</head>
+
+<body>
+  <script type="module">
+    // first, import the Three.js modules we need:
+import * as THREE from "https://unpkg.com/three@0.126.0/build/three.module.js";
+import { VRButton } from 'https://cdn.skypack.dev/three@0.128.0/examples/jsm/webxr/VRButton.js';
+import Stats from "https://unpkg.com/three@0.126.0/examples/jsm/libs/stats.module";
+import { PLYLoader } from "https://unpkg.com/three@0.126.0/examples/jsm/loaders/PLYLoader.js";
+
+import {
+  vec2,
+  vec3,
+  vec4,
+  quat,
+  mat2,
+  mat3,
+  mat4
+} from "https://cdn.skypack.dev/gl-matrix@3.3.0";
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.xr.enabled = true;
+document.body.appendChild( renderer.domElement );
+document.body.appendChild(VRButton.createButton(renderer));
+
+// arguments: vertical field of view (degrees), aspect ratio, near clip, far clip:
+const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.05, 100 );
+// Z axis point out of the screen toward you; units are meters
+camera.position.y = 1.5;
+camera.position.z = 2;
+
+// ensure the renderer fills the page, and the camera aspect ratio matches:
+function resize() {
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		camera.aspect = window.innerWidth / window.innerHeight;
+		camera.updateProjectionMatrix();
+}
+// do this now and whenever the window is resized()
+resize();
+window.addEventListener("resize", resize, false);
+
+// build a scene graph:
+const scene = new THREE.Scene();
+
+// A mesh requires a geometry and a material:
+const geometry = new THREE.BoxGeometry(1, 1, 1, 10, 10, 10)
+const material = new THREE.MeshStandardMaterial({
+  wireframe: true,
+})
+const cube = new THREE.Mesh( geometry, material );
+cube.position.y = 1.5;
+//scene.add( cube );
+
+console.log(geometry.attributes)
+
+// add basic lighting
+const light = new THREE.HemisphereLight(0xfff0f0, 0x606066);
+//light.position.set(1, 1, 1);
+scene.add(light);
+
+let MAX_NUM_POINTS = 1000000;
+let pointsCount = MAX_NUM_POINTS/10;
+let positions = new Float32Array(MAX_NUM_POINTS * 3);
+for (let i=0; i<MAX_NUM_POINTS*3; i++) { 
+  positions[i] = THREE.MathUtils.randFloatSpread(1.5); 
+}
+const pointsGeom = new THREE.BufferGeometry();
+pointsGeom.setAttribute(
+  "position",
+  new THREE.Float32BufferAttribute(positions, 3)
+);
+//pointsGeom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));//
+
+const sprite = (function (size = 128) {
+  // create canvas
+  let canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  // get context
+  let context = canvas.getContext("2d");
+  // draw circle
+  context.beginPath();
+  context.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI, false);
+  context.fillStyle = "#FFFFFF";
+  context.fill();
+  return new THREE.CanvasTexture(canvas);
+})();
+sprite.needsUpdate = true; // important
+
+const pointsMat = new THREE.PointsMaterial({
+  size: 0.001,
+  //vertexColors: true,
+  map: sprite,
+  blending: THREE.AdditiveBlending,
+  depthTest: true,
+  transparent: true,
+  sizeAttenuation: true
+});
+
+const points = new THREE.Points(pointsGeom, pointsMat);
+points.position.y = 1.5;
+scene.add(points);
+
+// copy cube points in:
+function copyPointsGeom(src) {
+  // typedarray.set is like memcpy()
+  pointsGeom.attributes.position.array.set(src.attributes.position.array)
+  pointsCount = src.attributes.position.count;
+}
+
+copyPointsGeom(geometry)
+
+// add a stats view to monitor performance:
+const stats = new Stats();
+document.body.appendChild(stats.dom);
+
+const clock = new THREE.Clock();
+
+// the function called at frame-rate to animate & render the scene:
+function animate() {
+  // monitor our FPS:
+  stats.begin();
+  
+  // compute current timing:
+  const t = clock.getElapsedTime();
+  const dt = clock.getDelta()
+
+  pointsGeom.setDrawRange(0, pointsCount);
+
+  // update the scene:
+  cube.rotation.x = t;
+  cube.rotation.y = Math.cos(t * 2);
+
+  // draw the scene:
+  renderer.render( scene, camera );
+
+  // // Re-Render the scene, but this time to the canvas (don't do this on Mobile!)
+  // if (renderer.xr.isPresenting) {
+  //       renderer.xr.enabled = false;
+  //       let oldFramebuffer = renderer._framebuffer;
+  //       renderer.state.bindXRFramebuffer( null );
+  //       renderer.render(scene, camera);
+  //       renderer.xr.enabled = true;
+  //       renderer.state.bindXRFramebuffer(oldFramebuffer);
+  //   }
+  
+  // monitor our FPS:
+  stats.end();
+};
+// start!
+renderer.setAnimationLoop(animate);
+
+  </script>
+</body>
+
+</html>
