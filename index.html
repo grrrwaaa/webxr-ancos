@@ -35,7 +35,8 @@
       document.body.appendChild(renderer.domElement);
       document.body.appendChild(VRButton.createButton(renderer));
 
-      const EYE_HEIGHT = 1.3;
+      let EYE_HEIGHT = 1.3;
+      let USE_VR_MIRROR = true;
 
       // arguments: vertical field of view (degrees), aspect ratio, near clip, far clip:
       const camera = new THREE.PerspectiveCamera(
@@ -143,6 +144,7 @@
         backward: 0,
         right: 0,
         left: 0,
+        crouch: 0,
         dir: new THREE.Vector3(),
       };
 
@@ -164,9 +166,14 @@
           case 'KeyD':
             move.right = 1;
             break;
+          case 'ShiftLeft':
+            move.crouch = 1;
+            break;
           case 'Space':
             //move.jump = 1;
             break;
+          default:
+          //console.log(event.code);
         }
       });
 
@@ -187,6 +194,9 @@
           case 'ArrowRight':
           case 'KeyD':
             move.right = 0;
+            break;
+          case 'ShiftLeft':
+            move.crouch = 0;
             break;
         }
       });
@@ -213,6 +223,8 @@
           let spd = 1;
           controls.moveRight(move.dir.x * spd * dt);
           controls.moveForward(move.dir.z * spd * dt);
+
+          camera.position.y = EYE_HEIGHT * (1 / (1 + move.crouch));
         }
 
         pointsGeom.setDrawRange(0, pointsCount);
@@ -226,7 +238,7 @@
           renderer.setFramebuffer(null);
           renderer.setRenderTarget(renderer.getRenderTarget());
           renderer.clear();
-          renderer.render(scene, camera);
+          renderer.render(scene, USE_VR_MIRROR ? camera_vr : camera);
           renderer.xr.isPresenting = true;
         } else {
           renderer.render(scene, camera);
