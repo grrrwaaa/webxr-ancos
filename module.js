@@ -253,7 +253,9 @@ if (1) {
     'https://artificialnature.net/webxrancos/gallery_space.obj',
     // called when resource is loaded
     function (group) {
-      scene.add(group);
+      let mesh = group.children[0]
+      mesh.material = material
+      scene.add(m);
     },
     // called when loading is in progresses
     function (xhr) {
