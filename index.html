@@ -11,23 +11,29 @@
   <body>
     <script type="module">
       // first, import the Three.js modules we need:
-      import * as THREE from 'https://cdn.skypack.dev/three@0.126.0/build/three.module.js';
-      import { OrbitControls } from 'https://cdn.skypack.dev/three@0.126.0/examples/jsm/controls/OrbitControls.js';
-      import { PointerLockControls } from 'https://cdn.skypack.dev/three@0.126.0/examples/jsm/controls/PointerLockControls.js';
-      import { VRButton } from 'https://cdn.skypack.dev/three@0.126.0/examples/jsm/webxr/VRButton.js';
-      import Stats from 'https://cdn.skypack.dev/three@0.126.0/examples/jsm/libs/stats.module';
-      import { PLYLoader } from 'https://cdn.skypack.dev/three@0.126.0/examples/jsm/loaders/PLYLoader.js';
-      import { OBJLoader } from 'https://cdn.skypack.dev/three@0.126.0/examples/jsm/loaders/OBJLoader.js';
-
-      import {
-        vec2,
-        vec3,
-        vec4,
-        quat,
-        mat2,
-        mat3,
-        mat4,
-      } from 'https://cdn.skypack.dev/gl-matrix@3.3.0';
+      const THREE = await import('https://cdn.skypack.dev/three@0.126.0');
+      const { OrbitControls } = await import(
+        'https://cdn.skypack.dev/three@0.126.0/examples/jsm/controls/OrbitControls.js'
+      );
+      const { PointerLockControls } = await import(
+        'https://cdn.skypack.dev/three@0.126.0/examples/jsm/controls/PointerLockControls.js'
+      );
+      const { VRButton } = await import(
+        'https://cdn.skypack.dev/three@0.126.0/examples/jsm/webxr/VRButton.js'
+      );
+      let Stats = await import(
+        'https://cdn.skypack.dev/three@0.126.0/examples/jsm/libs/stats.module'
+      );
+      Stats = Stats.default;
+      const { PLYLoader } = await import(
+        'https://cdn.skypack.dev/three@0.126.0/examples/jsm/loaders/PLYLoader.js'
+      );
+      const { OBJLoader } = await import(
+        'https://cdn.skypack.dev/three@0.126.0/examples/jsm/loaders/OBJLoader.js'
+      );
+      const { vec2, vec3, vec4, quat, mat2, mat3, mat4 } = await import(
+        'https://cdn.skypack.dev/gl-matrix@3.3.0'
+      );
 
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setPixelRatio(window.devicePixelRatio);
@@ -259,7 +265,6 @@
           'https://artificialnature.net/webxrancos/gallery_space.obj',
           // called when resource is loaded
           function (group) {
-            group.children[0].material = material; //new THREE.MeshStandardMaterial();
             scene.add(group);
           },
           // called when loading is in progresses
@@ -272,36 +277,36 @@
           }
         );
       }
-      if (1) {
-        loader.load(
-          // resource URL
-          'https://artificialnature.net/webxrancos/ObiwanHaru.obj',
-          // called when resource is loaded
-          function (group) {
-            let mesh = group.children[0];
-            let geom = mesh.geometry;
-            geom.rotateX(-Math.PI / 2);
-            geom.rotateY(+Math.PI / 2);
-            geom.translate(0.6, 2.65, -0);
-            // possibly
-            scene.add(new THREE.Points(mesh.geometry, pointsMat));
+      // if (1) {
+      //   loader.load(
+      //     // resource URL
+      //     'https://artificialnature.net/webxrancos/ObiwanHaru.obj',
+      //     // called when resource is loaded
+      //     function (group) {
+      //       let mesh = group.children[0];
+      //       let geom = mesh.geometry;
+      //       geom.rotateX(-Math.PI / 2);
+      //       geom.rotateY(+Math.PI / 2);
+      //       geom.translate(0.6, 2.65, -0);
+      //       // possibly
+      //       scene.add(new THREE.Points(mesh.geometry, pointsMat));
 
-            // let geom = mesh.geometry;
-            // console.log(geom);
-            // geom.rotateX(-Math.PI / 2);
-            // geom.translate(0, 2.6, 0);
-            // copyPointsGeom(geom);
-          },
-          // called when loading is in progresses
-          function (xhr) {
-            console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
-          },
-          // called when loading has errors
-          function (error) {
-            console.log('An error happened', error);
-          }
-        );
-      }
+      //       // let geom = mesh.geometry;
+      //       // console.log(geom);
+      //       // geom.rotateX(-Math.PI / 2);
+      //       // geom.translate(0, 2.6, 0);
+      //       // copyPointsGeom(geom);
+      //     },
+      //     // called when loading is in progresses
+      //     function (xhr) {
+      //       console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
+      //     },
+      //     // called when loading has errors
+      //     function (error) {
+      //       console.log('An error happened', error);
+      //     }
+      //   );
+      // }
     </script>
   </body>
 </html>
