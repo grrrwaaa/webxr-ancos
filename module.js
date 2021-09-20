@@ -98,7 +98,7 @@ camera_wasd.position.z = 2;
 
 // make an indepenent camera for VR:
 let camera_vr = camera_wasd.clone();
-/const camera_vrviz = new THREE.CameraHelper(camera_vr);
+//const camera_vrviz = new THREE.CameraHelper(camera_vr);
 scene.add(camera_vr);
 
 let camera_orbit = camera_wasd.clone();
