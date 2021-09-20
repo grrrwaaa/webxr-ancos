@@ -33,9 +33,9 @@ let EYE_HEIGHT = 1.4;
 
 const PROJECTOR_ASPECT = 1920 / 1200;
 const PROJECTOR_THROW_RATIO = 0.6;
-const PROJECTOR_HEIGHT = 3.3;
-const PROJECTOR1_POSITION = new THREE.Vector3(1.2, PROJECTOR_HEIGHT, -1);
-const PROJECTOR2_POSITION = new THREE.Vector3(-0.7, PROJECTOR_HEIGHT, -6.5);
+const PROJECTOR_HEIGHT = 3.2;
+const PROJECTOR1_POSITION = new THREE.Vector3(1, PROJECTOR_HEIGHT, 3);
+const PROJECTOR2_POSITION = new THREE.Vector3(-0.5, PROJECTOR_HEIGHT, -2.5);
 
 const LIDAR_HEIGHT = PROJECTOR_HEIGHT;
 const LIDAR1_POSITION = new THREE.Vector3(
@@ -52,24 +52,38 @@ const LIDAR2_POSITION = new THREE.Vector3(
 // throw ratio is throw distance / image width
 // tan(halfangle) = halfwidth/distance (in radians)
 // Field of view (Y) is twice that angle, in degrees, divided by aspect
+const PROJECTOR_W = PROJECTOR_HEIGHT / PROJECTOR_THROW_RATIO;
+const PROJECTOR_H = PROJECTOR_W / PROJECTOR_ASPECT;
+const PROJECTOR_FOVX =
+  (Math.atan((0.5 * PROJECTOR_W) / PROJECTOR_HEIGHT) * 2 * 180) / Math.PI;
 const PROJECTOR_FOVY =
-  (((Math.atan(0.5 / PROJECTOR_THROW_RATIO) * 180) / Math.PI) * 2) /
-  PROJECTOR_ASPECT;
+  (Math.atan((0.5 * PROJECTOR_H) / PROJECTOR_HEIGHT) * 2 * 180) / Math.PI;
 
 const guidata = {
-  USE_WASD: false,
-  USE_VR_MIRROR: true,
+  WASD: false,
+  USE_VR_MIRROR: false,
   pointcloud: false,
 };
 
 const textureLoader = new THREE.TextureLoader();
+const objLoader = new OBJLoader();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.xr.enabled = true;
+renderer.shadowMap.enabled = true;
+//renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+//renderer.outputEncoding = THREE.sRGBEncoding;
+
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
 renderer.domElement.tabIndex = 0; // allow it to get keyboard focus
+
+// build a scene graph:
+const scene = new THREE.Scene();
+
+const zkm = new THREE.Group();
+scene.add(zkm);
 
 // arguments: vertical field of view (degrees), aspect ratio, near clip, far clip:
 const camera_wasd = new THREE.PerspectiveCamera(
@@ -84,6 +98,9 @@ camera_wasd.position.z = 2;
 
 // make an indepenent camera for VR:
 let camera_vr = camera_wasd.clone();
+const camera_vrviz = new THREE.CameraHelper(camera_vr);
+scene.add(camera_vr);
+
 let camera_orbit = camera_wasd.clone();
 
 // ensure the renderer fills the page, and the camera aspect ratio matches:
@@ -91,53 +108,13 @@ function resize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera_wasd.aspect = window.innerWidth / window.innerHeight;
   camera_wasd.updateProjectionMatrix();
+  camera_orbit.aspect = window.innerWidth / window.innerHeight;
+  camera_orbit.updateProjectionMatrix();
+  //camera_wasd.updateProjectionMatrix();
 }
 // do this now and whenever the window is resized()
 resize();
 window.addEventListener('resize', resize, false);
-
-// build a scene graph:
-const scene = new THREE.Scene();
-
-let clouds = new THREE.Group();
-clouds.visible = false;
-scene.add(clouds);
-function showClouds(show) {
-  // show/hide let clouds = new THREE.Group();
-  clouds.visible = show;
-  // load if not yet loaded:
-  if (show && !clouds.children.length) {
-    loader.load(
-      // resource URL
-      site_prefix + 'ObiwanIna.obj',
-      // called when resource is loaded
-      function (group) {
-        let mesh = group.children[0];
-        let geom = mesh.geometry;
-        geom.rotateX(-Math.PI / 2);
-        geom.rotateY(+Math.PI / 2);
-        geom.translate(LIDAR1_POSITION.x, 2.65, LIDAR1_POSITION.z);
-        // possibly
-        clouds.add(new THREE.Points(mesh.geometry, pointsMat));
-      }
-    );
-    loader.load(
-      // resource URL
-      site_prefix + 'ObiwanHaru.obj',
-      // called when resource is loaded
-      function (group) {
-        let mesh = group.children[0];
-        let geom = mesh.geometry;
-        geom.rotateX(-Math.PI / 2);
-        geom.rotateY(+Math.PI / 2);
-        geom.translate(LIDAR2_POSITION.x, 2.65, LIDAR2_POSITION.z);
-        // possibly
-        clouds.add(new THREE.Points(mesh.geometry, pointsMat));
-      }
-    );
-  }
-}
-showClouds(guidata.pointcloud);
 
 // A mesh requires a geometry and a material:
 const floorGeom = new THREE.BoxGeometry(20, 0.01, 20, 20, 1, 20);
@@ -163,9 +140,21 @@ function loadTex(path, map = 'map', rx = 1, ry = 1) {
 }
 loadTex(floorMatPrefix + 'basecolor.jpg', 'map', 10, 10);
 loadTex(floorMatPrefix + 'roughness.jpg', 'roughnessMap', 10, 10);
-loadTex(floorMatPrefix + 'ambiennormaltOcclusion.jpg', 'normalMap', 10, 10);
+loadTex(floorMatPrefix + 'normal.jpg', 'normalMap', 10, 10);
 loadTex(floorMatPrefix + 'ambientOcclusion.jpg', 'aoMap', 10, 10);
-loadTex(floorMatPrefix + 'height.jpg', 'bumpMap', 10, 10);
+loadTex(floorMatPrefix + 'height.png', 'bumpMap', 10, 10);
+
+let dummy = new THREE.Mesh(
+  new THREE.BoxGeometry(0.2, 0.2, 0.2),
+  new THREE.MeshStandardMaterial({
+    color: 0x666666
+  })
+);
+dummy.position.x = -1;
+dummy.position.y = 1;
+dummy.position.z = -2;
+dummy.castShadow = true;
+scene.add(dummy);
 
 // add basic lighting
 const hemispherelight = new THREE.HemisphereLight(0xeeeeee, 0x080808, 1);
@@ -178,17 +167,34 @@ const pointlight1 = new THREE.PointLight(0xffffff, 1, 10, 2);
 pointlight1.position.copy(PROJECTOR1_POSITION);
 scene.add(pointlight1);
 
-const pointlight2 = new THREE.PointLight(0xffffff, 1, 10, 2);
-pointlight2.position.copy(PROJECTOR2_POSITION)
+const pointlight2 = new THREE.SpotLight(
+  0xffffff,
+  1,
+  PROJECTOR_HEIGHT * 3,
+  (PROJECTOR_FOVX * Math.PI) / 180
+);
+pointlight2.position.copy(PROJECTOR2_POSITION);
+pointlight2.castShadow = true;
+pointlight2.shadow.camera.near = 1;
+pointlight2.shadow.camera.far = PROJECTOR_HEIGHT;
+//pointlight2.shadow.bias = -0.000222;
+pointlight2.shadow.mapSize.width = 1920 / 2;
+pointlight2.shadow.mapSize.height = 1200 / 2;
+pointlight2.target.position.set(
+  PROJECTOR2_POSITION.x,
+  0,
+  PROJECTOR2_POSITION.z
+);
+pointlight2.target.updateMatrixWorld();
+pointlight2.penumbra = 0.2;
+pointlight2.decay = 1;
+pointlight2.shadow.focus = 1;
 scene.add(pointlight2);
 
-const lineMat = new THREE.LineDashedMaterial({
-  color: 0xffffff,
-  linewidth: 1,
-  scale: 1,
-  dashSize: 3,
-  gapSize: 1,
-});
+let lightHelper = new THREE.SpotLightHelper(pointlight2);
+scene.add(lightHelper);
+
+const lidarMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
 
 const axesHelper = new THREE.AxesHelper(1);
 scene.add(axesHelper);
@@ -200,6 +206,8 @@ lidar1.rotateY(+Math.PI / 2);
 lidar1.rotateX(-Math.PI / 2);
 scene.add(lidar1);
 const lidar1viz = new THREE.CameraHelper(lidar1);
+console.log(lidar1viz.material);
+lidar1viz.material = lidarMat;
 scene.add(lidar1viz);
 
 let lidar2 = new THREE.PerspectiveCamera(55, 640 / 480, 0.4, LIDAR2_POSITION.y);
@@ -208,6 +216,7 @@ lidar2.rotateY(+Math.PI / 2);
 lidar2.rotateX(-Math.PI / 2);
 scene.add(lidar2);
 const lidar2viz = new THREE.CameraHelper(lidar2);
+lidar2viz.material = lidarMat;
 scene.add(lidar2viz);
 
 // preview the projector:
@@ -236,6 +245,86 @@ projector2.rotateX(-Math.PI / 2);
 scene.add(projector2);
 const projector2viz = new THREE.CameraHelper(projector2);
 scene.add(projector2viz);
+
+const shadowMat = new THREE.ShadowMaterial({
+  side: THREE.DoubleSide,
+  opacity: 0.5,
+});
+let sand2_geom = new THREE.PlaneGeometry(PROJECTOR_W, PROJECTOR_H);
+sand2_geom.rotateX(-Math.PI / 2);
+sand2_geom.rotateY(+Math.PI / 2);
+sand2_geom.translate(PROJECTOR2_POSITION.x, 0., PROJECTOR2_POSITION.z);
+let proj2_quad = new THREE.Mesh(sand2_geom, shadowMat);
+proj2_quad.receiveShadow = true;
+scene.add(proj2_quad);
+
+let proj1_scene = new THREE.Scene();
+let proj1_texture = new THREE.WebGLRenderTarget(1920, 1200, {
+  minFilter: THREE.LinearFilter,
+  magFilter: THREE.NearestFilter,
+  format: THREE.RGBFormat,
+});
+
+let sand1_geom = new THREE.PlaneGeometry(PROJECTOR_W, PROJECTOR_H);
+sand1_geom.rotateX(-Math.PI / 2);
+sand1_geom.rotateY(+Math.PI / 2);
+sand1_geom.translate(PROJECTOR1_POSITION.x, 0, PROJECTOR1_POSITION.z);
+let proj1_quad = new THREE.Mesh(
+  sand1_geom,
+  new THREE.MeshBasicMaterial({
+    side: THREE.DoubleSide,
+    color: 0xffffff,
+    map: proj1_texture.texture,
+  })
+);
+// 				// quad.position.z = - 100;
+// 				// sceneRTT.add( quad );
+scene.add(proj1_quad);
+
+let clouds = new THREE.Group();
+clouds.visible = false;
+scene.add(clouds);
+function showClouds(show) {
+  // show/hide let clouds = new THREE.Group();
+  clouds.visible = show;
+  // load if not yet loaded:
+  if (show && !clouds.children.length) {
+    objLoader.load(
+      // resource URL
+      site_prefix + 'ObiwanIna.obj',
+      // called when resource is loaded
+      function (group) {
+        let mesh = group.children[0];
+        let geom = mesh.geometry;
+        geom.rotateX(-Math.PI / 2);
+        geom.rotateY(+Math.PI / 2);
+        geom.translate(LIDAR1_POSITION.x, 2.65, LIDAR1_POSITION.z);
+        // possibly
+        let pts = new THREE.Points(mesh.geometry, pointsMat);
+        pts.castShadow = true;
+        //clouds.add(pts);
+        proj1_scene.add(pts.clone());
+      }
+    );
+    objLoader.load(
+      // resource URL
+      site_prefix + 'ObiwanHaru.obj',
+      // called when resource is loaded
+      function (group) {
+        let mesh = group.children[0];
+        let geom = mesh.geometry;
+        geom.rotateX(-Math.PI / 2);
+        geom.rotateY(+Math.PI / 2);
+        geom.translate(LIDAR2_POSITION.x, 2.65, LIDAR2_POSITION.z);
+        // possibly
+        let pts = new THREE.Points(mesh.geometry, pointsMat);
+        pts.castShadow = true;
+        clouds.add(pts);
+      }
+    );
+  }
+}
+showClouds(guidata.pointcloud);
 
 let MAX_NUM_POINTS = 1000000;
 let pointsCount = MAX_NUM_POINTS / 10;
@@ -267,7 +356,7 @@ const sprite = (function (size = 128) {
 sprite.needsUpdate = true; // important
 
 const pointsMat = new THREE.PointsMaterial({
-  size: 0.001,
+  size: 0.01,
   color: 0x666666,
   //vertexColors: true,
   map: sprite,
@@ -378,6 +467,9 @@ function animate() {
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
+  dummy.position.z = -2 + 1 * Math.cos(t/3)
+  dummy.position.x = -0.5 + 1 * Math.sin(t)
+
   if (pointerControls.isLocked === true && dt) {
     move.dir.z = move.forward - move.backward;
     move.dir.x = move.right - move.left;
@@ -391,7 +483,14 @@ function animate() {
 
   pointsGeom.setDrawRange(0, pointsCount);
 
-  let camera_novr = guidata.USE_WASD ? camera_wasd : camera_orbit;
+  renderer.setRenderTarget(proj1_texture);
+  // 			renderer.clear();
+  renderer.render(proj1_scene, projector1);
+
+  renderer.setRenderTarget(null);
+  // 			renderer.clear();
+
+  let camera_novr = guidata.WASD ? camera_wasd : camera_orbit;
 
   // draw the scene:w
   if (renderer.xr.isPresenting) {
@@ -414,21 +513,21 @@ function animate() {
 // start!
 renderer.setAnimationLoop(animate);
 
-// instantiate a loader
-const loader = new OBJLoader();
 // load a resource
 if (1) {
-  loader.load(
+  objLoader.load(
     // resource URL
     site_prefix + 'gallery.obj',
     // called when resource is loaded
     function (group) {
+      //console.log('gallery', group);
       let mesh = group.children[0];
+      mesh.geometry.translate(0, 0, 4);
       mesh.material = new THREE.MeshStandardMaterial({
         wireframe: true,
         color: 0x444444,
       });
-      scene.add(mesh);
+      zkm.add(mesh);
     },
     // called when loading is in progresses
     function (xhr) {
@@ -439,19 +538,19 @@ if (1) {
       console.log('An error happened', error);
     }
   );
-}
-if (1) {
-  loader.load(
+  objLoader.load(
     // resource URL
     site_prefix + 'gallery_etc.obj',
     // called when resource is loaded
     function (group) {
+      //console.log('etc', group);
       let mesh = group.children[0];
+      mesh.geometry.translate(0, 0, 4);
       mesh.material = new THREE.MeshStandardMaterial({
         wireframe: true,
         color: 0x999088,
       });
-      scene.add(mesh);
+      zkm.add(mesh);
     },
     // called when loading is in progresses
     function (xhr) {
@@ -465,7 +564,7 @@ if (1) {
 }
 const gui = new GUI();
 gui.add(guidata, 'USE_VR_MIRROR');
-gui.add(guidata, 'USE_WASD').onChange((b) => {
+gui.add(guidata, 'WASD').onChange((b) => {
   if (b) {
     pointerControls.lock();
   } else {
@@ -473,12 +572,12 @@ gui.add(guidata, 'USE_WASD').onChange((b) => {
   }
 });
 pointerControls.addEventListener('lock', () => {
-  guidata.USE_WASD = true;
+  guidata.WASD = true;
   renderer.domElement.focus();
   gui.updateDisplay();
 });
 pointerControls.addEventListener('unlock', () => {
-  guidata.USE_WASD = false;
+  guidata.WASD = false;
   gui.updateDisplay();
 });
 
