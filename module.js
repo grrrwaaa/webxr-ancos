@@ -19,11 +19,40 @@ const { PLYLoader } = await import(
 const { OBJLoader } = await import(
   'https://cdn.skypack.dev/three@0.126.0/examples/jsm/loaders/OBJLoader.js'
 );
+const { GUI } = await import(
+  'https://unpkg.com/three@0.126.0/examples/jsm/libs/dat.gui.module.js'
+);
+
 const { vec2, vec3, vec4, quat, mat2, mat3, mat4 } = await import(
   'https://cdn.skypack.dev/gl-matrix@3.3.0'
 );
 
 const site_prefix = 'https://artificialnature.net/webxrancos/';
+
+let EYE_HEIGHT = 1.4;
+
+const PROJECTOR_HEIGHT = 3;
+const PROJECTOR_ASPECT = 1920 / 1080;
+const PROJECTOR_THROW_RATIO = 0.6;
+
+const LIDAR_HEIGHT = PROJECTOR_HEIGHT; // 2.65;
+const LIDAR1_POSITION = new THREE.Vector3(0.6, LIDAR_HEIGHT, 0);
+const LIDAR2_POSITION = new THREE.Vector3(0.6, LIDAR_HEIGHT, -5);
+
+// throw ratio is throw distance / image width
+// tan(halfangle) = halfwidth/distance (in radians)
+// Field of view (Y) is twice that angle, in degrees, divided by aspect
+const PROJECTOR_FOVY =
+  (((Math.atan(0.5 / PROJECTOR_THROW_RATIO) * 180) / Math.PI) * 2) /
+  PROJECTOR_ASPECT;
+const PROJECTOR1_POSITION = new THREE.Vector3(0.8, PROJECTOR_HEIGHT, 0);
+const PROJECTOR2_POSITION = new THREE.Vector3(0.8, PROJECTOR_HEIGHT, -5);
+
+const guidata = {
+  USE_WASD: false,
+  USE_VR_MIRROR: true,
+  pointcloud: false,
+};
 
 const textureLoader = new THREE.TextureLoader();
 
@@ -32,29 +61,28 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
-
-let EYE_HEIGHT = 1.3;
-let USE_VR_MIRROR = true;
+renderer.domElement.tabIndex = 0; // allow it to get keyboard focus
 
 // arguments: vertical field of view (degrees), aspect ratio, near clip, far clip:
-const camera = new THREE.PerspectiveCamera(
+const camera_wasd = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.05,
   100
 );
 // Z axis point out of the screen toward you; units are meters
-camera.position.y = EYE_HEIGHT;
-camera.position.z = 2;
+camera_wasd.position.y = EYE_HEIGHT;
+camera_wasd.position.z = 2;
 
 // make an indepenent camera for VR:
-let camera_vr = camera.clone();
+let camera_vr = camera_wasd.clone();
+let camera_orbit = camera_wasd.clone();
 
 // ensure the renderer fills the page, and the camera aspect ratio matches:
 function resize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
+  camera_wasd.aspect = window.innerWidth / window.innerHeight;
+  camera_wasd.updateProjectionMatrix();
 }
 // do this now and whenever the window is resized()
 resize();
@@ -62,6 +90,46 @@ window.addEventListener('resize', resize, false);
 
 // build a scene graph:
 const scene = new THREE.Scene();
+
+let clouds = new THREE.Group();
+clouds.visible = false;
+scene.add(clouds);
+function showClouds(show) {
+  // show/hide let clouds = new THREE.Group();
+  clouds.visible = show;
+  // load if not yet loaded:
+  if (show && !clouds.children.length) {
+    loader.load(
+      // resource URL
+      site_prefix + 'ObiwanIna.obj',
+      // called when resource is loaded
+      function (group) {
+        let mesh = group.children[0];
+        let geom = mesh.geometry;
+        geom.rotateX(-Math.PI / 2);
+        geom.rotateY(+Math.PI / 2);
+        geom.translate(LIDAR1_POSITION.x, 2.65, LIDAR1_POSITION.z);
+        // possibly
+        clouds.add(new THREE.Points(mesh.geometry, pointsMat));
+      }
+    );
+    loader.load(
+      // resource URL
+      site_prefix + 'ObiwanHaru.obj',
+      // called when resource is loaded
+      function (group) {
+        let mesh = group.children[0];
+        let geom = mesh.geometry;
+        geom.rotateX(-Math.PI / 2);
+        geom.rotateY(+Math.PI / 2);
+        geom.translate(LIDAR2_POSITION.x, 2.65, LIDAR2_POSITION.z);
+        // possibly
+        clouds.add(new THREE.Points(mesh.geometry, pointsMat));
+      }
+    );
+  }
+  
+  showClouds(guidata.pointcloud)
 
 // A mesh requires a geometry and a material:
 const floorGeom = new THREE.BoxGeometry(20, 0.01, 20, 20, 1, 20);
@@ -85,7 +153,6 @@ function loadTex(path, map = 'map', rx = 1, ry = 1) {
     floorMat.needsUpdate = true;
   });
 }
-
 loadTex(floorMatPrefix + 'basecolor.jpg', 'map', 10, 10);
 loadTex(floorMatPrefix + 'roughness.jpg', 'roughnessMap', 10, 10);
 loadTex(floorMatPrefix + 'ambiennormaltOcclusion.jpg', 'normalMap', 10, 10);
@@ -96,6 +163,8 @@ loadTex(floorMatPrefix + 'height.jpg', 'bumpMap', 10, 10);
 const hemispherelight = new THREE.HemisphereLight(0xeeeeee, 0x080808, 1);
 hemispherelight.position.set(1, 1, 1);
 scene.add(hemispherelight);
+const ambientlight = new THREE.AmbientLight(0x404040);
+scene.add(ambientlight);
 
 const pointlight1 = new THREE.PointLight(0xffffff, 1, 10, 2);
 pointlight1.position.set(0, 5, -2);
@@ -104,6 +173,61 @@ scene.add(pointlight1);
 const pointlight2 = new THREE.PointLight(0xffffff, 1, 10, 2);
 pointlight2.position.set(0, 5, -7);
 scene.add(pointlight2);
+
+const lineMat = new THREE.LineDashedMaterial({
+  color: 0xffffff,
+  linewidth: 1,
+  scale: 1,
+  dashSize: 3,
+  gapSize: 1,
+});
+
+const axesHelper = new THREE.AxesHelper(1);
+scene.add(axesHelper);
+
+// preview the lidar:
+let lidar1 = new THREE.PerspectiveCamera(55, 640 / 480, 0.4, LIDAR1_POSITION.y);
+lidar1.position.copy(LIDAR1_POSITION);
+lidar1.rotateY(+Math.PI / 2);
+lidar1.rotateX(-Math.PI / 2);
+scene.add(lidar1);
+const lidar1viz = new THREE.CameraHelper(lidar1);
+scene.add(lidar1viz);
+
+let lidar2 = new THREE.PerspectiveCamera(55, 640 / 480, 0.4, LIDAR2_POSITION.y);
+lidar2.position.copy(LIDAR2_POSITION);
+lidar2.rotateY(+Math.PI / 2);
+lidar2.rotateX(-Math.PI / 2);
+scene.add(lidar2);
+const lidar2viz = new THREE.CameraHelper(lidar2);
+scene.add(lidar2viz);
+
+// preview the projector:
+let projector1 = new THREE.PerspectiveCamera(
+  PROJECTOR_FOVY,
+  PROJECTOR_ASPECT,
+  0.01,
+  PROJECTOR1_POSITION.y
+);
+projector1.position.copy(PROJECTOR1_POSITION);
+projector1.rotateY(+Math.PI / 2);
+projector1.rotateX(-Math.PI / 2);
+scene.add(projector1);
+const projector1viz = new THREE.CameraHelper(projector1);
+scene.add(projector1viz);
+
+let projector2 = new THREE.PerspectiveCamera(
+  PROJECTOR_FOVY,
+  PROJECTOR_ASPECT,
+  0.01,
+  PROJECTOR2_POSITION.y
+);
+projector2.position.copy(PROJECTOR2_POSITION);
+projector2.rotateY(+Math.PI / 2);
+projector2.rotateX(-Math.PI / 2);
+scene.add(projector2);
+const projector2viz = new THREE.CameraHelper(projector2);
+scene.add(projector2viz);
 
 let MAX_NUM_POINTS = 1000000;
 let pointsCount = MAX_NUM_POINTS / 10;
@@ -136,6 +260,7 @@ sprite.needsUpdate = true; // important
 
 const pointsMat = new THREE.PointsMaterial({
   size: 0.001,
+  color: 0x666666,
   //vertexColors: true,
   map: sprite,
   blending: THREE.AdditiveBlending,
@@ -156,14 +281,15 @@ function copyPointsGeom(src) {
   pointsGeom.attributes.position.needsUpdate = true;
 }
 
-// const controls = new OrbitControls(camera, renderer.domElement);
-// controls.target = new THREE.Vector3(0, 1, 0);
-// controls.update();
-const controls = new PointerLockControls(camera, document.body);
+const controls = new OrbitControls(camera_orbit, renderer.domElement);
+controls.target = new THREE.Vector3(0, 1, 0);
+controls.update();
+const pointerControls = new PointerLockControls(camera_wasd, document.body);
 renderer.domElement.addEventListener('click', function () {
-  controls.lock();
+  pointerControls.lock();
+  renderer.domElement.focus(); // and focus it
 });
-scene.add(controls.getObject());
+scene.add(pointerControls.getObject());
 // for WASD:
 const move = {
   forward: 0,
@@ -175,6 +301,7 @@ const move = {
 };
 
 document.addEventListener('keydown', function (event) {
+  event.preventDefault();
   switch (event.code) {
     case 'ArrowUp':
     case 'KeyW':
@@ -204,6 +331,7 @@ document.addEventListener('keydown', function (event) {
 });
 
 document.addEventListener('keyup', function (event) {
+  event.preventDefault();
   switch (event.code) {
     case 'ArrowUp':
     case 'KeyW':
@@ -242,18 +370,20 @@ function animate() {
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
-  if (controls.isLocked === true && dt) {
+  if (pointerControls.isLocked === true && dt) {
     move.dir.z = move.forward - move.backward;
     move.dir.x = move.right - move.left;
     move.dir.normalize();
-    let spd = 1;
-    controls.moveRight(move.dir.x * spd * dt);
-    controls.moveForward(move.dir.z * spd * dt);
+    let spd = 3;
+    pointerControls.moveRight(move.dir.x * spd * dt);
+    pointerControls.moveForward(move.dir.z * spd * dt);
 
-    camera.position.y = EYE_HEIGHT * (1 / (1 + move.crouch));
+    camera_wasd.position.y = EYE_HEIGHT * (1 / (1 + move.crouch));
   }
 
   pointsGeom.setDrawRange(0, pointsCount);
+
+  let camera_novr = guidata.USE_WASD ? camera_wasd : camera_orbit;
 
   // draw the scene:w
   if (renderer.xr.isPresenting) {
@@ -264,10 +394,10 @@ function animate() {
     renderer.setFramebuffer(null);
     renderer.setRenderTarget(renderer.getRenderTarget());
     renderer.clear();
-    renderer.render(scene, USE_VR_MIRROR ? camera_vr : camera);
+    renderer.render(scene, guidata.USE_VR_MIRROR ? camera_vr : camera_novr);
     renderer.xr.isPresenting = true;
   } else {
-    renderer.render(scene, camera);
+    renderer.render(scene, camera_novr);
   }
 
   // monitor our FPS:
@@ -287,7 +417,7 @@ if (1) {
     function (group) {
       let mesh = group.children[0];
       mesh.material = new THREE.MeshStandardMaterial({
-        //wireframe: true,
+        wireframe: true,
         color: 0x444444,
       });
       scene.add(mesh);
@@ -310,8 +440,8 @@ if (1) {
     function (group) {
       let mesh = group.children[0];
       mesh.material = new THREE.MeshStandardMaterial({
-        //wireframe: true,
-        color: 0x998888,
+        wireframe: true,
+        color: 0x999088,
       });
       scene.add(mesh);
     },
@@ -325,51 +455,59 @@ if (1) {
     }
   );
 }
-if (1) {
-  loader.load(
-    // resource URL
-    site_prefix + 'ObiwanHaru.obj',
-    // called when resource is loaded
-    function (group) {
-      let mesh = group.children[0];
-      let geom = mesh.geometry;
-      geom.rotateX(-Math.PI / 2);
-      geom.rotateY(+Math.PI / 2);
-      geom.translate(0.6, 2.65, -5);
-      // possibly
-      scene.add(new THREE.Points(mesh.geometry, pointsMat));
-    },
-    // called when loading is in progresses
-    function (xhr) {
-      console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
-    },
-    // called when loading has errors
-    function (error) {
-      console.log('An error happened', error);
-    }
-  );
-}
-if (1) {
-  loader.load(
-    // resource URL
-    site_prefix + 'ObiwanIna.obj',
-    // called when resource is loaded
-    function (group) {
-      let mesh = group.children[0];
-      let geom = mesh.geometry;
-      geom.rotateX(-Math.PI / 2);
-      geom.rotateY(+Math.PI / 2);
-      geom.translate(0.6, 2.65, 0);
-      // possibly
-      scene.add(new THREE.Points(mesh.geometry, pointsMat));
-    },
-    // called when loading is in progresses
-    function (xhr) {
-      console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
-    },
-    // called when loading has errors
-    function (error) {
-      console.log('An error happened', error);
-    }
-  );
-}
+const gui = new GUI();
+gui.add(guidata, 'USE_VR_MIRROR');
+gui.add(guidata, 'USE_WASD').onChange((b) => {
+  if (b) {
+    pointerControls.lock();
+  } else {
+    pointerControls.unlock();
+  }
+});
+pointerControls.addEventListener('lock', () => {
+  guidata.USE_WASD = true;
+  renderer.domElement.focus();
+  gui.updateDisplay();
+});
+pointerControls.addEventListener('unlock', () => {
+  guidata.USE_WASD = false;
+  gui.updateDisplay();
+});
+
+gui.add(guidata, 'pointcloud').onChange((b) => {
+  // show/hide let clouds = new THREE.Group();
+  clouds.visible = b;
+  if (!clouds.children.length) {
+    loader.load(
+      // resource URL
+      site_prefix + 'ObiwanIna.obj',
+      // called when resource is loaded
+      function (group) {
+        let mesh = group.children[0];
+        let geom = mesh.geometry;
+        geom.rotateX(-Math.PI / 2);
+        geom.rotateY(+Math.PI / 2);
+        geom.translate(LIDAR1_POSITION.x, 2.65, LIDAR1_POSITION.z);
+        // possibly
+        clouds.add(new THREE.Points(mesh.geometry, pointsMat));
+      }
+    );
+    loader.load(
+      // resource URL
+      site_prefix + 'ObiwanHaru.obj',
+      // called when resource is loaded
+      function (group) {
+        let mesh = group.children[0];
+        let geom = mesh.geometry;
+        geom.rotateX(-Math.PI / 2);
+        geom.rotateY(+Math.PI / 2);
+        geom.translate(LIDAR2_POSITION.x, 2.65, LIDAR2_POSITION.z);
+        // possibly
+        clouds.add(new THREE.Points(mesh.geometry, pointsMat));
+      }
+    );
+  }
+});
+
+//const gui_cameras = gui.addFolder('Cameras');
+// gui_cameras.add(guidata, "detail", 0, 10).step(1).onChange(generateGeometry);
