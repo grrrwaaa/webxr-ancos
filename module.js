@@ -76,7 +76,7 @@ const floorMat = new THREE.MeshStandardMaterial({
 const floor = new THREE.Mesh(floorGeom, floorMat);
 scene.add(floor);
 
-function loadTex(path, map="map", rx=1, ry=1 ) {
+function loadTex(path, map = 'map', rx = 1, ry = 1) {
   textureLoader.load(path, (texture) => {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
@@ -86,11 +86,11 @@ function loadTex(path, map="map", rx=1, ry=1 ) {
   });
 }
 
-loadTex(floorMatPrefix + 'basecolor.jpg', "map", 10, 10)
-loadTex(floorMatPrefix + 'roughness.jpg', "roughnessMap", 10, 10)
-loadTex(floorMatPrefix + 'ambiennormaltOcclusion.jpg', "normalMap", 10, 10)
-loadTex(floorMatPrefix + 'ambientOcclusion.jpg', "aoMap", 10, 10)
-loadTex(floorMatPrefix + 'height.jpg', "bumpMap", 10, 10)
+loadTex(floorMatPrefix + 'basecolor.jpg', 'map', 10, 10);
+loadTex(floorMatPrefix + 'roughness.jpg', 'roughnessMap', 10, 10);
+loadTex(floorMatPrefix + 'ambiennormaltOcclusion.jpg', 'normalMap', 10, 10);
+loadTex(floorMatPrefix + 'ambientOcclusion.jpg', 'aoMap', 10, 10);
+loadTex(floorMatPrefix + 'height.jpg', 'bumpMap', 10, 10);
 
 // add basic lighting
 const hemispherelight = new THREE.HemisphereLight(0xeeeeee, 0x080808, 1);
@@ -288,6 +288,7 @@ if (1) {
       let mesh = group.children[0];
       mesh.material = new THREE.MeshStandardMaterial({
         //wireframe: true,
+        color: 0x4,
       });
       scene.add(mesh);
     },
