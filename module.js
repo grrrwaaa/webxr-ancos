@@ -338,12 +338,30 @@ if (1) {
       geom.translate(0.6, 2.65, -0);
       // possibly
       scene.add(new THREE.Points(mesh.geometry, pointsMat));
-
-      // let geom = mesh.geometry;
-      // console.log(geom);
-      // geom.rotateX(-Math.PI / 2);
-      // geom.translate(0, 2.6, 0);
-      // copyPointsGeom(geom);
+    },
+    // called when loading is in progresses
+    function (xhr) {
+      console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
+    },
+    // called when loading has errors
+    function (error) {
+      console.log('An error happened', error);
+    }
+  );
+}
+if (1) {
+  loader.load(
+    // resource URL
+    site_prefix + 'ObiwanIna.obj',
+    // called when resource is loaded
+    function (group) {
+      let mesh = group.children[0];
+      let geom = mesh.geometry;
+      geom.rotateX(-Math.PI / 2);
+      geom.rotateY(+Math.PI / 2);
+      geom.translate(0.6, 2.65, -);
+      // possibly
+      scene.add(new THREE.Points(mesh.geometry, pointsMat));
     },
     // called when loading is in progresses
     function (xhr) {
