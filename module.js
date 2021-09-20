@@ -62,7 +62,7 @@ const PROJECTOR_FOVY =
 const guidata = {
   WASD: false,
   USE_VR_MIRROR: false,
-  pointcloud: false,
+  pointcloud: true,
 };
 
 const textureLoader = new THREE.TextureLoader();
@@ -95,11 +95,6 @@ const camera_wasd = new THREE.PerspectiveCamera(
 // Z axis point out of the screen toward you; units are meters
 camera_wasd.position.y = EYE_HEIGHT;
 camera_wasd.position.z = 2;
-
-// make an indepenent camera for VR:
-let camera_vr = camera_wasd.clone();
-//const camera_vrviz = new THREE.CameraHelper(camera_vr);
-scene.add(camera_vr);
 
 let camera_orbit = camera_wasd.clone();
 
@@ -147,7 +142,7 @@ loadTex(floorMatPrefix + 'height.png', 'bumpMap', 10, 10);
 let dummy = new THREE.Mesh(
   new THREE.BoxGeometry(0.2, 0.2, 0.2),
   new THREE.MeshStandardMaterial({
-    color: 0x666666
+    color: 0x666666,
   })
 );
 dummy.position.x = -1;
@@ -191,8 +186,8 @@ pointlight2.decay = 1;
 pointlight2.shadow.focus = 1;
 scene.add(pointlight2);
 
-let lightHelper = new THREE.SpotLightHelper(pointlight2);
-scene.add(lightHelper);
+// let lightHelper = new THREE.SpotLightHelper(pointlight2);
+// scene.add(lightHelper);
 
 const lidarMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
 
@@ -206,7 +201,6 @@ lidar1.rotateY(+Math.PI / 2);
 lidar1.rotateX(-Math.PI / 2);
 scene.add(lidar1);
 const lidar1viz = new THREE.CameraHelper(lidar1);
-console.log(lidar1viz.material);
 lidar1viz.material = lidarMat;
 scene.add(lidar1viz);
 
@@ -253,7 +247,7 @@ const shadowMat = new THREE.ShadowMaterial({
 let sand2_geom = new THREE.PlaneGeometry(PROJECTOR_W, PROJECTOR_H);
 sand2_geom.rotateX(-Math.PI / 2);
 sand2_geom.rotateY(+Math.PI / 2);
-sand2_geom.translate(PROJECTOR2_POSITION.x, 0., PROJECTOR2_POSITION.z);
+sand2_geom.translate(PROJECTOR2_POSITION.x, 0, PROJECTOR2_POSITION.z);
 let proj2_quad = new THREE.Mesh(sand2_geom, shadowMat);
 proj2_quad.receiveShadow = true;
 scene.add(proj2_quad);
@@ -277,8 +271,6 @@ let proj1_quad = new THREE.Mesh(
     map: proj1_texture.texture,
   })
 );
-// 				// quad.position.z = - 100;
-// 				// sceneRTT.add( quad );
 scene.add(proj1_quad);
 
 let clouds = new THREE.Group();
@@ -452,6 +444,10 @@ document.addEventListener('keyup', function (event) {
   }
 });
 
+// make an indepenent camera for VR:
+let camera_vr = new THREE.PerspectiveCamera();
+scene.add(camera_vr);
+
 // add a stats view to monitor performance:
 const stats = new Stats();
 document.body.appendChild(stats.dom);
@@ -467,8 +463,8 @@ function animate() {
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
-  dummy.position.z = -2 + 1 * Math.cos(t/3)
-  dummy.position.x = -0.5 + 1 * Math.sin(t)
+  dummy.position.z = -2 + 1 * Math.cos(t / 3);
+  dummy.position.x = -0.5 + 1 * Math.sin(t);
 
   if (pointerControls.isLocked === true && dt) {
     move.dir.z = move.forward - move.backward;
@@ -483,12 +479,12 @@ function animate() {
 
   pointsGeom.setDrawRange(0, pointsCount);
 
-  renderer.setRenderTarget(proj1_texture);
-  // 			renderer.clear();
-  renderer.render(proj1_scene, projector1);
+  // renderer.setRenderTarget(proj1_texture);
+  // // 			renderer.clear();
+  // renderer.render(proj1_scene, projector1);
 
-  renderer.setRenderTarget(null);
-  // 			renderer.clear();
+  // renderer.setRenderTarget(null);
+  // // 			renderer.clear();
 
   let camera_novr = guidata.WASD ? camera_wasd : camera_orbit;
 
