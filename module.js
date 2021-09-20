@@ -35,7 +35,7 @@ const PROJECTOR_HEIGHT = 3;
 const PROJECTOR_ASPECT = 1920 / 1080;
 const PROJECTOR_THROW_RATIO = 0.6;
 
-const LIDAR_HEIGHT = PROJECTOR_HEIGHT; // 2.65;
+const LIDAR_HEIGHT = 2.65; //PROJECTOR_HEIGHT
 const LIDAR1_POSITION = new THREE.Vector3(0.6, LIDAR_HEIGHT, 0);
 const LIDAR2_POSITION = new THREE.Vector3(0.6, LIDAR_HEIGHT, -5);
 
@@ -128,8 +128,8 @@ function showClouds(show) {
       }
     );
   }
-  
-  showClouds(guidata.pointcloud)
+}
+showClouds(guidata.pointcloud);
 
 // A mesh requires a geometry and a material:
 const floorGeom = new THREE.BoxGeometry(20, 0.01, 20, 20, 1, 20);
@@ -474,40 +474,7 @@ pointerControls.addEventListener('unlock', () => {
   gui.updateDisplay();
 });
 
-gui.add(guidata, 'pointcloud').onChange((b) => {
-  // show/hide let clouds = new THREE.Group();
-  clouds.visible = b;
-  if (!clouds.children.length) {
-    loader.load(
-      // resource URL
-      site_prefix + 'ObiwanIna.obj',
-      // called when resource is loaded
-      function (group) {
-        let mesh = group.children[0];
-        let geom = mesh.geometry;
-        geom.rotateX(-Math.PI / 2);
-        geom.rotateY(+Math.PI / 2);
-        geom.translate(LIDAR1_POSITION.x, 2.65, LIDAR1_POSITION.z);
-        // possibly
-        clouds.add(new THREE.Points(mesh.geometry, pointsMat));
-      }
-    );
-    loader.load(
-      // resource URL
-      site_prefix + 'ObiwanHaru.obj',
-      // called when resource is loaded
-      function (group) {
-        let mesh = group.children[0];
-        let geom = mesh.geometry;
-        geom.rotateX(-Math.PI / 2);
-        geom.rotateY(+Math.PI / 2);
-        geom.translate(LIDAR2_POSITION.x, 2.65, LIDAR2_POSITION.z);
-        // possibly
-        clouds.add(new THREE.Points(mesh.geometry, pointsMat));
-      }
-    );
-  }
-});
+gui.add(guidata, 'pointcloud').onChange(showClouds);
 
 //const gui_cameras = gui.addFolder('Cameras');
 // gui_cameras.add(guidata, "detail", 0, 10).step(1).onChange(generateGeometry);
