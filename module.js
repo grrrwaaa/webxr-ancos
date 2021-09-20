@@ -335,7 +335,7 @@ if (1) {
       let geom = mesh.geometry;
       geom.rotateX(-Math.PI / 2);
       geom.rotateY(+Math.PI / 2);
-      geom.translate(0.6, 2.65, -0);
+      geom.translate(0.6, 2.65, -5);
       // possibly
       scene.add(new THREE.Points(mesh.geometry, pointsMat));
     },
@@ -359,7 +359,7 @@ if (1) {
       let geom = mesh.geometry;
       geom.rotateX(-Math.PI / 2);
       geom.rotateY(+Math.PI / 2);
-      geom.translate(0.6, 2.65, -);
+      geom.translate(0.6, 2.65, 0);
       // possibly
       scene.add(new THREE.Points(mesh.geometry, pointsMat));
     },
