@@ -68,7 +68,7 @@ const floorGeom = new THREE.BoxGeometry(20, 0.01, 20, 20, 1, 20);
 floorGeom.translate(0, -0.01, 0);
 const floorMatPrefix = site_prefix + 'Wood_Floor_009_';
 const floorMat = new THREE.MeshStandardMaterial({
-  roughness: 0.5,
+  roughness: 0.8,
   metalness: 0,
   color: 0x999999,
   //aoMap: new THREE.TextureLoader().load( floorMatPrefix + 'ambientOcclusion.jpg' ),
@@ -282,13 +282,13 @@ const loader = new OBJLoader();
 if (1) {
   loader.load(
     // resource URL
-    site_prefix + 'gallery_space.obj',
+    site_prefix + 'gallery.obj',
     // called when resource is loaded
     function (group) {
       let mesh = group.children[0];
       mesh.material = new THREE.MeshStandardMaterial({
         //wireframe: true,
-        color: 0x4,
+        color: 0x444444,
       });
       scene.add(mesh);
     },
@@ -302,7 +302,30 @@ if (1) {
     }
   );
 }
-if (0) {
+if (1) {
+  loader.load(
+    // resource URL
+    site_prefix + 'gallery_etc.obj',
+    // called when resource is loaded
+    function (group) {
+      let mesh = group.children[0];
+      mesh.material = new THREE.MeshStandardMaterial({
+        //wireframe: true,
+        color: 0x998888,
+      });
+      scene.add(mesh);
+    },
+    // called when loading is in progresses
+    function (xhr) {
+      console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
+    },
+    // called when loading has errors
+    function (error) {
+      console.log('An error happened', error);
+    }
+  );
+}
+if (1) {
   loader.load(
     // resource URL
     site_prefix + 'ObiwanHaru.obj',
