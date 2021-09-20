@@ -1,5 +1,8 @@
 // first, import the Three.js modules we need:
 const THREE = await import('https://cdn.skypack.dev/three@0.126.0');
+const { LightProbeGenerator } = await import(
+  'https://cdn.skypack.dev/three@0.126.0/examples/jsm/lights/LightProbeGenerator.js'
+);
 const { OrbitControls } = await import(
   'https://cdn.skypack.dev/three@0.126.0/examples/jsm/controls/OrbitControls.js'
 );
@@ -62,7 +65,8 @@ const PROJECTOR_FOVY =
 const guidata = {
   WASD: false,
   USE_VR_MIRROR: false,
-  pointcloud: true,
+  pointcloud: false,
+  wirewalls: false,
 };
 
 const textureLoader = new THREE.TextureLoader();
@@ -121,6 +125,16 @@ const floorMat = new THREE.MeshStandardMaterial({
   color: 0x999999,
   //aoMap: new THREE.TextureLoader().load( floorMatPrefix + 'ambientOcclusion.jpg' ),
 });
+
+let columnsMat = new THREE.MeshStandardMaterial({
+  wireframe: guidata.wirewalls,
+  color: 0x999088,
+});
+let wallsMat = new THREE.MeshStandardMaterial({
+  wireframe: guidata.wirewalls,
+  color: 0x444444,
+});
+
 const floor = new THREE.Mesh(floorGeom, floorMat);
 scene.add(floor);
 
@@ -139,17 +153,17 @@ loadTex(floorMatPrefix + 'normal.jpg', 'normalMap', 10, 10);
 loadTex(floorMatPrefix + 'ambientOcclusion.jpg', 'aoMap', 10, 10);
 loadTex(floorMatPrefix + 'height.png', 'bumpMap', 10, 10);
 
-let dummy = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({
-    color: 0x666666,
-  })
-);
-dummy.position.x = -1;
-dummy.position.y = 1;
-dummy.position.z = -2;
-dummy.castShadow = true;
-scene.add(dummy);
+// let dummy = new THREE.Mesh(
+//   new THREE.BoxGeometry(0.2, 0.2, 0.2),
+//   new THREE.MeshStandardMaterial({
+//     color: 0x666666,
+//   })
+// );
+// dummy.position.x = -1;
+// dummy.position.y = 1;
+// dummy.position.z = -2;
+// dummy.castShadow = true;
+// scene.add(dummy);
 
 // add basic lighting
 const hemispherelight = new THREE.HemisphereLight(0xeeeeee, 0x080808, 1);
@@ -158,8 +172,28 @@ scene.add(hemispherelight);
 const ambientlight = new THREE.AmbientLight(0x404040);
 scene.add(ambientlight);
 
-const pointlight1 = new THREE.PointLight(0xffffff, 1, 10, 2);
+const pointlight1 = new THREE.SpotLight(
+  0xffffff,
+  1,
+  PROJECTOR_HEIGHT * 3,
+  (PROJECTOR_FOVX * Math.PI) / 180
+);
 pointlight1.position.copy(PROJECTOR1_POSITION);
+pointlight1.castShadow = true;
+pointlight1.shadow.camera.near = 1;
+pointlight1.shadow.camera.far = PROJECTOR_HEIGHT;
+//pointlight1.shadow.bias = -0.000222;
+pointlight1.shadow.mapSize.width = 1920 / 2;
+pointlight1.shadow.mapSize.height = 1200 / 2;
+pointlight1.target.position.set(
+  PROJECTOR1_POSITION.x,
+  0,
+  PROJECTOR1_POSITION.z
+);
+pointlight1.target.updateMatrixWorld();
+pointlight1.penumbra = 0.2;
+pointlight1.decay = 1;
+pointlight1.shadow.focus = 1;
 scene.add(pointlight1);
 
 const pointlight2 = new THREE.SpotLight(
@@ -185,6 +219,19 @@ pointlight2.penumbra = 0.2;
 pointlight2.decay = 1;
 pointlight2.shadow.focus = 1;
 scene.add(pointlight2);
+
+const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256, {
+  encoding: THREE.sRGBEncoding, // since gamma is applied during rendering, the cubeCamera renderTarget texture encoding must be sRGBEncoding
+  format: THREE.RGBAFormat,
+});
+const cubeCamera = new THREE.CubeCamera(0.1, 10, cubeRenderTarget);
+const lightProbe = new THREE.LightProbe();
+lightProbe.position.y = EYE_HEIGHT;
+scene.add(lightProbe);
+cubeCamera.update(renderer, scene);
+lightProbe.copy(
+  LightProbeGenerator.fromCubeRenderTarget(renderer, cubeRenderTarget)
+);
 
 // let lightHelper = new THREE.SpotLightHelper(pointlight2);
 // scene.add(lightHelper);
@@ -273,6 +320,33 @@ let proj1_quad = new THREE.Mesh(
 );
 scene.add(proj1_quad);
 
+const sprite = (function (size = 128) {
+  // create canvas
+  let canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  // get context
+  let context = canvas.getContext('2d');
+  // draw circle
+  context.beginPath();
+  context.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI, false);
+  context.fillStyle = '#FFFFFF';
+  context.fill();
+  return new THREE.CanvasTexture(canvas);
+})();
+sprite.needsUpdate = true; // important
+
+const pointsMat = new THREE.PointsMaterial({
+  size: 0.01,
+  color: 0x666666,
+  //vertexColors: true,
+  map: sprite,
+  blending: THREE.AdditiveBlending,
+  depthTest: true,
+  transparent: true,
+  sizeAttenuation: true,
+});
+
 let clouds = new THREE.Group();
 clouds.visible = false;
 scene.add(clouds);
@@ -318,6 +392,118 @@ function showClouds(show) {
 }
 showClouds(guidata.pointcloud);
 
+let simpleMat = new THREE.MeshStandardMaterial({
+  color: 0x666666,
+});
+let bellsMat = new THREE.MeshStandardMaterial({
+  color: 0x665544,
+  metalness: 1,
+  roughness: 0,
+  envMap: cubeRenderTarget.texture,
+});
+let esp32_geom = new THREE.BoxGeometry(0.1, 0.05, 0.075);
+let bell_geom = new THREE.SphereGeometry(0.01, 15, 16);
+
+function makeBells() {
+  let positions = [
+    {
+      pos: new THREE.Vector3(
+        PROJECTOR1_POSITION.x,
+        3.9,
+        PROJECTOR1_POSITION.z + 1
+      ),
+      angle: 0,
+    },
+    {
+      pos: new THREE.Vector3(
+        PROJECTOR1_POSITION.x,
+        3.9,
+        PROJECTOR1_POSITION.z - 1
+      ),
+      angle: Math.PI,
+    },
+    {
+      pos: new THREE.Vector3(
+        PROJECTOR2_POSITION.x,
+        3.9,
+        PROJECTOR2_POSITION.z + 1
+      ),
+      angle: 0,
+    },
+    {
+      pos: new THREE.Vector3(
+        PROJECTOR2_POSITION.x,
+        3.9,
+        PROJECTOR2_POSITION.z - 1
+      ),
+      angle: Math.PI,
+    },
+  ];
+
+  for (let { pos, angle } of positions) {
+    let grp = new THREE.Group();
+    grp.position.copy(pos);
+    scene.add(grp);
+
+    let esp32 = new THREE.Mesh(esp32_geom, simpleMat);
+    grp.add(esp32);
+
+    for (let i = 0; i < 14; i++) {
+      let r = 1.3;
+      let a = (Math.PI * i) / 13 + angle;
+      let x = r * Math.cos(a);
+      let z = r * Math.sin(a);
+      let y = i % 2 ? -2.5 : -1.5; //(Math.random() * (1-pos.y))
+      let a2 = Math.random() * Math.PI * 2;
+      x += 0.25 * (Math.random() - 0.5);
+      z += 0.25 * (Math.random() - 0.5);
+      y += 0.5 * (Math.random() - 0.5);
+
+      let bellpair = new THREE.Group();
+      bellpair.position.set(x, y, z);
+      bellpair.rotation.y = a2;
+      grp.add(bellpair);
+
+      let positions = [
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(x, 0, z),
+        new THREE.Vector3(x, y, z),
+      ];
+
+      let curve = new THREE.CatmullRomCurve3(
+        positions,
+        false,
+        'catmullrom',
+        0.2
+      );
+      const geometry = new THREE.BufferGeometry().setFromPoints(
+        curve.getPoints(32)
+      );
+      curve.curveType = 'chordal'; //centripetal, chordal and catmullrom.
+      curve.mesh = new THREE.Line(
+        geometry.clone(),
+        new THREE.LineBasicMaterial({
+          color: 0x222222,
+          opacity: 0.35,
+        })
+      );
+      grp.add(curve.mesh);
+
+      let bell1 = new THREE.Mesh(bell_geom, bellsMat);
+      bell1.position.x = -0.01;
+      bell1.castShadow = true;
+      bellpair.add(bell1);
+
+      let bell2 = new THREE.Mesh(bell_geom, bellsMat);
+      bell2.position.x = 0.01;
+      bell2.castShadow = true;
+      bellpair.add(bell2);
+    }
+  }
+}
+
+makeBells();
+
 let MAX_NUM_POINTS = 1000000;
 let pointsCount = MAX_NUM_POINTS / 10;
 let positions = new Float32Array(MAX_NUM_POINTS * 3);
@@ -330,33 +516,6 @@ pointsGeom.setAttribute(
   new THREE.Float32BufferAttribute(positions, 3)
 );
 //pointsGeom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));//
-
-const sprite = (function (size = 128) {
-  // create canvas
-  let canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  // get context
-  let context = canvas.getContext('2d');
-  // draw circle
-  context.beginPath();
-  context.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI, false);
-  context.fillStyle = '#FFFFFF';
-  context.fill();
-  return new THREE.CanvasTexture(canvas);
-})();
-sprite.needsUpdate = true; // important
-
-const pointsMat = new THREE.PointsMaterial({
-  size: 0.01,
-  color: 0x666666,
-  //vertexColors: true,
-  map: sprite,
-  blending: THREE.AdditiveBlending,
-  depthTest: true,
-  transparent: true,
-  sizeAttenuation: true,
-});
 
 const points = new THREE.Points(pointsGeom, pointsMat);
 //points.position.y = 1.5;
@@ -463,8 +622,8 @@ function animate() {
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
-  dummy.position.z = -2 + 1 * Math.cos(t / 3);
-  dummy.position.x = -0.5 + 1 * Math.sin(t);
+  // dummy.position.z = -2 + 1 * Math.cos(t / 3);
+  // dummy.position.x = -0.5 + 1 * Math.sin(t);
 
   if (pointerControls.isLocked === true && dt) {
     move.dir.z = move.forward - move.backward;
@@ -519,19 +678,8 @@ if (1) {
       //console.log('gallery', group);
       let mesh = group.children[0];
       mesh.geometry.translate(0, 0, 4);
-      mesh.material = new THREE.MeshStandardMaterial({
-        wireframe: true,
-        color: 0x444444,
-      });
+      mesh.material = wallsMat;
       zkm.add(mesh);
-    },
-    // called when loading is in progresses
-    function (xhr) {
-      console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
-    },
-    // called when loading has errors
-    function (error) {
-      console.log('An error happened', error);
     }
   );
   objLoader.load(
@@ -542,19 +690,8 @@ if (1) {
       //console.log('etc', group);
       let mesh = group.children[0];
       mesh.geometry.translate(0, 0, 4);
-      mesh.material = new THREE.MeshStandardMaterial({
-        wireframe: true,
-        color: 0x999088,
-      });
+      mesh.material = columnsMat;
       zkm.add(mesh);
-    },
-    // called when loading is in progresses
-    function (xhr) {
-      console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
-    },
-    // called when loading has errors
-    function (error) {
-      console.log('An error happened', error);
     }
   );
 }
@@ -578,6 +715,10 @@ pointerControls.addEventListener('unlock', () => {
 });
 
 gui.add(guidata, 'pointcloud').onChange(showClouds);
+gui.add(guidata, 'wirewalls').onChange((b) => {
+  wallsMat.wireframe = b;
+  columnsMat.wireframe = b;
+});
 
 //const gui_cameras = gui.addFolder('Cameras');
 // gui_cameras.add(guidata, "detail", 0, 10).step(1).onChange(generateGeometry);
