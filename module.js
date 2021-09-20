@@ -31,13 +31,23 @@ const site_prefix = 'https://artificialnature.net/webxrancos/';
 
 let EYE_HEIGHT = 1.4;
 
-const PROJECTOR_HEIGHT = 3;
-const PROJECTOR_ASPECT = 1920 / 1080;
+const PROJECTOR_ASPECT = 1920 / 1200;
 const PROJECTOR_THROW_RATIO = 0.6;
+const PROJECTOR_HEIGHT = 3.3;
+const PROJECTOR1_POSITION = new THREE.Vector3(1.2, PROJECTOR_HEIGHT, -1);
+const PROJECTOR2_POSITION = new THREE.Vector3(-0.7, PROJECTOR_HEIGHT, -6.5);
 
-const LIDAR_HEIGHT = 2.65; //PROJECTOR_HEIGHT
-const LIDAR1_POSITION = new THREE.Vector3(0.6, LIDAR_HEIGHT, 0);
-const LIDAR2_POSITION = new THREE.Vector3(0.6, LIDAR_HEIGHT, -5);
+const LIDAR_HEIGHT = PROJECTOR_HEIGHT;
+const LIDAR1_POSITION = new THREE.Vector3(
+  PROJECTOR1_POSITION.x - 0.2,
+  LIDAR_HEIGHT,
+  PROJECTOR1_POSITION.z
+);
+const LIDAR2_POSITION = new THREE.Vector3(
+  PROJECTOR2_POSITION.x + 0.2,
+  LIDAR_HEIGHT,
+  PROJECTOR2_POSITION.z
+);
 
 // throw ratio is throw distance / image width
 // tan(halfangle) = halfwidth/distance (in radians)
@@ -45,8 +55,6 @@ const LIDAR2_POSITION = new THREE.Vector3(0.6, LIDAR_HEIGHT, -5);
 const PROJECTOR_FOVY =
   (((Math.atan(0.5 / PROJECTOR_THROW_RATIO) * 180) / Math.PI) * 2) /
   PROJECTOR_ASPECT;
-const PROJECTOR1_POSITION = new THREE.Vector3(0.8, PROJECTOR_HEIGHT, 0);
-const PROJECTOR2_POSITION = new THREE.Vector3(0.8, PROJECTOR_HEIGHT, -5);
 
 const guidata = {
   USE_WASD: false,
@@ -167,11 +175,11 @@ const ambientlight = new THREE.AmbientLight(0x404040);
 scene.add(ambientlight);
 
 const pointlight1 = new THREE.PointLight(0xffffff, 1, 10, 2);
-pointlight1.position.set(0, 5, -2);
+pointlight1.position.copy(PROJECTOR1_POSITION);
 scene.add(pointlight1);
 
 const pointlight2 = new THREE.PointLight(0xffffff, 1, 10, 2);
-pointlight2.position.set(0, 5, -7);
+pointlight2.position.copy(PROJECTOR2_POSITION)
 scene.add(pointlight2);
 
 const lineMat = new THREE.LineDashedMaterial({
@@ -285,10 +293,10 @@ const controls = new OrbitControls(camera_orbit, renderer.domElement);
 controls.target = new THREE.Vector3(0, 1, 0);
 controls.update();
 const pointerControls = new PointerLockControls(camera_wasd, document.body);
-renderer.domElement.addEventListener('click', function () {
-  pointerControls.lock();
-  renderer.domElement.focus(); // and focus it
-});
+// renderer.domElement.addEventListener('click', function () {
+//   pointerControls.lock();
+//   renderer.domElement.focus(); // and focus it
+// });
 scene.add(pointerControls.getObject());
 // for WASD:
 const move = {
