@@ -23,6 +23,10 @@ const { vec2, vec3, vec4, quat, mat2, mat3, mat4 } = await import(
   'https://cdn.skypack.dev/gl-matrix@3.3.0'
 );
 
+const site_prefix = 'https://artificialnature.net/webxrancos/';
+
+const textureLoader = new THREE.TextureLoader();
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.xr.enabled = true;
@@ -60,23 +64,52 @@ window.addEventListener('resize', resize, false);
 const scene = new THREE.Scene();
 
 // A mesh requires a geometry and a material:
-const geometry = new THREE.BoxGeometry(1, 1, 1, 10, 10, 10);
-geometry.scale(3, 0.01, 3);
-const material = new THREE.MeshStandardMaterial({
-  wireframe: true,
+const floorGeom = new THREE.BoxGeometry(20, 0.01, 20, 20, 1, 20);
+floorGeom.translate(0, -0.01, 0);
+const floorMatPrefix = site_prefix + 'Wood_Floor_009_';
+const floorMat = new THREE.MeshStandardMaterial({
+  roughness: 0.5,
+  metalness: 0,
+  color: 0x999999,
+  //aoMap: new THREE.TextureLoader().load( floorMatPrefix + 'ambientOcclusion.jpg' ),
 });
-const cube = new THREE.Mesh(geometry, material);
+const floor = new THREE.Mesh(floorGeom, floorMat);
+scene.add(floor);
+
+function loadTex(path, map="map", rx=1, ry=1 ) {
+  textureLoader.load(path, (texture) => {
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(rx, ry);
+    floorMat[map] = texture;
+    floorMat.needsUpdate = true;
+  });
+}
+
+loadTex(floorMatPrefix + 'basecolor.jpg', "map", 10, 10)
+loadTex(floorMatPrefix + 'roughness.jpg', "roughnessMap", 10, 10)
+loadTex(floorMatPrefix + 'ambiennormaltOcclusion.jpg', "normalMap", 10, 10)
+loadTex(floorMatPrefix + 'ambientOcclusion.jpg', "aoMap", 10, 10)
+loadTex(floorMatPrefix + 'height.jpg', "bumpMap", 10, 10)
 
 // add basic lighting
-const light = new THREE.HemisphereLight(0xfff0f0, 0x606066);
-//light.position.set(1, 1, 1);
-scene.add(light);
+const hemispherelight = new THREE.HemisphereLight(0xeeeeee, 0x080808, 1);
+hemispherelight.position.set(1, 1, 1);
+scene.add(hemispherelight);
+
+const pointlight1 = new THREE.PointLight(0xffffff, 1, 10, 2);
+pointlight1.position.set(0, 5, -2);
+scene.add(pointlight1);
+
+const pointlight2 = new THREE.PointLight(0xffffff, 1, 10, 2);
+pointlight2.position.set(0, 5, -7);
+scene.add(pointlight2);
 
 let MAX_NUM_POINTS = 1000000;
 let pointsCount = MAX_NUM_POINTS / 10;
 let positions = new Float32Array(MAX_NUM_POINTS * 3);
 for (let i = 0; i < MAX_NUM_POINTS * 3; i++) {
-  positions[i] = THREE.MathUtils.randFloatSpread(0.5);
+  //positions[i] = THREE.MathUtils.randFloatSpread(0.5);
 }
 const pointsGeom = new THREE.BufferGeometry();
 pointsGeom.setAttribute(
@@ -122,7 +155,6 @@ function copyPointsGeom(src) {
   pointsCount = src.attributes.position.count;
   pointsGeom.attributes.position.needsUpdate = true;
 }
-copyPointsGeom(geometry.toNonIndexed());
 
 // const controls = new OrbitControls(camera, renderer.domElement);
 // controls.target = new THREE.Vector3(0, 1, 0);
@@ -250,12 +282,14 @@ const loader = new OBJLoader();
 if (1) {
   loader.load(
     // resource URL
-    'https://artificialnature.net/webxrancos/gallery_space.obj',
+    site_prefix + 'gallery_space.obj',
     // called when resource is loaded
     function (group) {
-      let mesh = group.children[0]
-      mesh.material = material
-      scene.add(m);
+      let mesh = group.children[0];
+      mesh.material = new THREE.MeshStandardMaterial({
+        //wireframe: true,
+      });
+      scene.add(mesh);
     },
     // called when loading is in progresses
     function (xhr) {
@@ -267,10 +301,10 @@ if (1) {
     }
   );
 }
-if (1) {
+if (0) {
   loader.load(
     // resource URL
-    'https://artificialnature.net/webxrancos/ObiwanHaru.obj',
+    site_prefix + 'ObiwanHaru.obj',
     // called when resource is loaded
     function (group) {
       let mesh = group.children[0];
