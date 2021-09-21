@@ -115,28 +115,12 @@ function resize() {
 resize();
 window.addEventListener('resize', resize, false);
 
-// A mesh requires a geometry and a material:
-const floorGeom = new THREE.BoxGeometry(20, 0.01, 20, 20, 1, 20);
-floorGeom.translate(0, -0.01, 0);
 const floorMatPrefix = site_prefix + 'Wood_Floor_009_';
 const floorMat = new THREE.MeshStandardMaterial({
   roughness: 0.8,
   metalness: 0,
-  color: 0x999999,
-  //aoMap: new THREE.TextureLoader().load( floorMatPrefix + 'ambientOcclusion.jpg' ),
+  color: 0x222222,
 });
-
-let columnsMat = new THREE.MeshStandardMaterial({
-  wireframe: guidata.wirewalls,
-  color: 0x999088,
-});
-let wallsMat = new THREE.MeshStandardMaterial({
-  wireframe: guidata.wirewalls,
-  color: 0x444444,
-});
-
-const floor = new THREE.Mesh(floorGeom, floorMat);
-scene.add(floor);
 
 function loadTex(path, map = 'map', rx = 1, ry = 1) {
   textureLoader.load(path, (texture) => {
@@ -152,6 +136,20 @@ loadTex(floorMatPrefix + 'roughness.jpg', 'roughnessMap', 10, 10);
 loadTex(floorMatPrefix + 'normal.jpg', 'normalMap', 10, 10);
 loadTex(floorMatPrefix + 'ambientOcclusion.jpg', 'aoMap', 10, 10);
 loadTex(floorMatPrefix + 'height.png', 'bumpMap', 10, 10);
+
+let columnsMat = new THREE.MeshStandardMaterial({
+  wireframe: guidata.wirewalls,
+  color: 0x999088,
+});
+let wallsMat = new THREE.MeshStandardMaterial({
+  wireframe: guidata.wirewalls,
+  color: 0x444444,
+});
+
+const floorGeom = new THREE.BoxGeometry(20, 0.01, 20, 20, 1, 20);
+floorGeom.translate(0, -0.01, 0);
+const floor = new THREE.Mesh(floorGeom, floorMat);
+scene.add(floor);
 
 // let dummy = new THREE.Mesh(
 //   new THREE.BoxGeometry(0.2, 0.2, 0.2),
