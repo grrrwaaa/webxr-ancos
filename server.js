@@ -31,7 +31,7 @@ const assert = require("assert");
 const express = require('express');
 
 const PORT = process.env.PORT || 3000;
-const PUBLIC = path.join(__dirname, 'public')
+const PUBLIC = path.join(__dirname, 'client')
 const IS_HEROKU = (process.env._ && process.env._.indexOf("heroku") !== -1);
 
 const app = express();
