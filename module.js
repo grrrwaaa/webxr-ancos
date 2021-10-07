@@ -30,7 +30,8 @@ const { vec2, vec3, vec4, quat, mat2, mat3, mat4 } = await import(
   'https://cdn.skypack.dev/gl-matrix@3.3.0'
 );
 
-const site_prefix = 'https://artificialnature.net/webxrancos/';
+const RESOURCE_URL_BASE = window.location.hostname == "localhost" ? window.origin+"/" : 'https://artificialnature.net/webxrancos/';
+console.log(window.location, RESOURCE_URL_BASE)
 
 let EYE_HEIGHT = 1.4;
 
@@ -115,7 +116,7 @@ function resize() {
 resize();
 window.addEventListener('resize', resize, false);
 
-const floorMatPrefix = site_prefix + 'Wood_Floor_009_';
+const floorMatPrefix = RESOURCE_URL_BASE + 'Wood_Floor_009_';
 const floorMat = new THREE.MeshStandardMaterial({
   roughness: 0.8,
   metalness: 0,
@@ -355,7 +356,7 @@ function showClouds(show) {
   if (show && !clouds.children.length) {
     objLoader.load(
       // resource URL
-      site_prefix + 'ObiwanIna.obj',
+      RESOURCE_URL_BASE + 'ObiwanIna.obj',
       // called when resource is loaded
       function (group) {
         let mesh = group.children[0];
@@ -372,7 +373,7 @@ function showClouds(show) {
     );
     objLoader.load(
       // resource URL
-      site_prefix + 'ObiwanHaru.obj',
+      RESOURCE_URL_BASE + 'ObiwanHaru.obj',
       // called when resource is loaded
       function (group) {
         let mesh = group.children[0];
@@ -670,7 +671,7 @@ renderer.setAnimationLoop(animate);
 if (1) {
   objLoader.load(
     // resource URL
-    site_prefix + 'gallery.obj',
+    RESOURCE_URL_BASE + 'gallery.obj',
     // called when resource is loaded
     function (group) {
       //console.log('gallery', group);
@@ -682,7 +683,7 @@ if (1) {
   );
   objLoader.load(
     // resource URL
-    site_prefix + 'gallery_etc.obj',
+    RESOURCE_URL_BASE + 'gallery_etc.obj',
     // called when resource is loaded
     function (group) {
       //console.log('etc', group);
