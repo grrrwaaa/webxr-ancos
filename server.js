@@ -28,11 +28,17 @@ const url = require('url');
 const http = require('http');
 const https = require('https');
 const assert = require("assert");
-const express = require('express');
 
-const PORT = process.env.PORT || 3000;
-const PUBLIC = path.join(__dirname, 'client')
+const express = require('express');
+const ws = require("ws");
+const { v4: uuidv4 } = require("uuid")
+
+// this will be true if this server is running on Heroku
 const IS_HEROKU = (process.env._ && process.env._.indexOf("heroku") !== -1);
+// use HTTPS if we are NOT on Heroku, and NOT using DEBUG:
+const IS_HTTPS = !IS_HEROKU;
+const PORT = process.env.PORT || 3000;
+const PUBLIC_PATH = path.join(__dirname, 'client')
 
 const app = express();
 if (IS_HEROKU) {
@@ -44,12 +50,46 @@ if (IS_HEROKU) {
 		return next();
 	});
 }
-app.use(express.static(PUBLIC));
+app.use(express.static(PUBLIC_PATH));
 app.get('/',function(req,res) {
-	res.sendFile(path.join(PUBLIC, 'index.html'))
+	res.sendFile(path.join(PUBLIC_PATH, 'index.html'))
 });
 
-const server = IS_HEROKU ?  http.createServer(app)  // <-- for Heroku
-	: https.createServer({ key: fs.readFileSync("./security/cert.key"), cert: fs.readFileSync("./security/cert.pem")}, app) // <-- for localhost
+const server = IS_HTTPS ? 
+	https.createServer({ 
+		key: fs.readFileSync("./security/cert.key"), 
+		cert: fs.readFileSync("./security/cert.pem")
+	}, app) // <-- for localhost
+	:  http.createServer(app)  // <-- for Heroku
 
-server.listen(PORT, () => console.log(`Server listening on port: ${PORT}`));
+server.listen(PORT, () => console.log(`Server listening on https://localhost:${PORT}`));
+
+// add a websocket server:
+const wss = new ws.Server({ server });
+
+wss.on('connection', (socket, req) => {
+	let subpath = url.parse(req.url).pathname;
+	console.log("ws connection to", subpath)
+
+	let id = uuidv4()
+
+	socket.on('message', (msg) => {
+		console.log("message", id, msg)
+
+	});
+
+	socket.on('error', (err) => {
+		console.error(err)
+		// should we exit?
+	});
+
+	socket.on('close', () => {
+		console.log("close")
+	});
+
+	socket.send(JSON.stringify({ cmd:"hello", id }))
+});
+
+setInterval(function() {
+	
+}, 1000/30);

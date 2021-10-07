@@ -1,3 +1,11 @@
+const IS_LOCALHOST = (window.location.hostname == "localhost");
+const IS_HEROKU = (window.location.hostname.indexOf("herokuapp") !== -1);
+const WS_ADDRESS = IS_HEROKU || IS_LOCALHOST ? location.origin.replace(/^http/, 'ws') : "wss://webxrancos.herokuapp.com"
+const RELOAD_ON_DISCONNECT = IS_LOCALHOST;
+
+console.log("connection to ws ")
+
+
 // first, import the Three.js modules we need:
 const THREE = await import('https://cdn.skypack.dev/three@0.126.0');
 const { LightProbeGenerator } = await import(
@@ -30,8 +38,9 @@ const { vec2, vec3, vec4, quat, mat2, mat3, mat4 } = await import(
   'https://cdn.skypack.dev/gl-matrix@3.3.0'
 );
 
-const RESOURCE_URL_BASE = window.location.hostname == "localhost" ? window.origin+"/" : 'https://artificialnature.net/webxrancos/';
-console.log(window.location, RESOURCE_URL_BASE)
+
+const RESOURCE_URL_BASE = IS_LOCALHOST ? window.origin+"/" : 'https://artificialnature.net/webxrancos/';
+console.log("loading assets from " + RESOURCE_URL_BASE)
 
 let EYE_HEIGHT = 1.4;
 
@@ -721,3 +730,62 @@ gui.add(guidata, 'wirewalls').onChange((b) => {
 
 //const gui_cameras = gui.addFolder('Cameras');
 // gui_cameras.add(guidata, "detail", 0, 10).step(1).onChange(generateGeometry);
+//////////////////////////////////////////
+// websocket
+
+function websocketConnect(options={}) {
+
+  console.log("connection to ws ")
+  let self = Object.assign({
+    url: location.origin.replace(/^http/, 'ws'),
+    subpath: "/",
+    reload_on_disconnect: RELOAD_ON_DISCONNECT,
+    log: console.log,
+    onmessage: console.log,
+    onconnect: () => console.log("ws connected"),
+    server: null,
+  }, options)
+
+
+  function connect() {
+		self.options.log(`connecting to ${options.url}${options.subpath}`)
+		self.server = new WebSocket(options.url + options.subpath);
+		self.server.binaryType = "arraybuffer";
+
+		reconnect = function() {
+			self.server = null
+			setTimeout(() => {
+				if (self.options.reload_on_disconnect) {
+					location.reload();
+				} else {
+					if (!self.server) connect()
+				}
+			}, 3000);
+		}
+
+		self.server.onerror = function(event, err) {
+			self.options.log("WebSocket error observed:", err, server.readyState);
+			self.server.close();
+			reconnect();
+		}
+
+		self.server.onopen = () => {
+			self.options.log( `connected to ${options.url}${options.subpath}`)
+			self.server.onclose = function(event) {
+				self.options.log("disconnected")
+				reconnect();
+			}
+			self.server.onmessage = (event) => {
+        self.options.onmessage(event, self.server)
+			}
+      
+      self.options.onconnect(self.server)
+		}
+	}
+
+	connect();
+
+  return self;
+}
+
+let server = websocketConnect()
