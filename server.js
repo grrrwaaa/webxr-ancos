@@ -1,5 +1,5 @@
 /*
-	For localhost testing need to generate an OpenSSL cert
+	For localhost HTTPS testing need to generate an OpenSSL cert
 
 	See walkthrough at https://stackoverflow.com/questions/21397809/create-a-trusted-self-signed-ssl-cert-for-localhost-for-use-with-express-node
 
